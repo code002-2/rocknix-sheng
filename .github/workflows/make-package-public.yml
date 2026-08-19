@@ -1,0 +1,25 @@
+name: Make build package public
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  make-public:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set rocknix-build package visibility to public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "== container packages =="
+          gh api "/user/packages?package_type=container&per_page=100" --jq '.[].name'
+          NAME=$(gh api "/user/packages?package_type=container&per_page=100" --jq -r '.[].name' | grep -i rocknix | head -1)
+          if [ -z "$NAME" ]; then echo "no rocknix package found"; exit 1; fi
+          echo "setting visibility for: $NAME"
+          gh api -X POST "/user/packages/container/$NAME/visibility" -f visibility=public
+          echo "done"

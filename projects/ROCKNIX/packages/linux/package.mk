@@ -25,7 +25,16 @@ case ${DEVICE} in
     PKG_GIT_CLONE_BRANCH="rk-6.1-rkr3"
     PKG_PATCH_DIRS="${LINUX} ${DEVICE} default"
     ;;
-  H700|RK3326|SM6115|SM8250|SM8550|SM8650|AMD64)
+  SM8550)
+    # Xiaomi Pad 6S Pro (sheng): use ianchb's sm8550-mainline sheng branch (7.2.0).
+    # NO Rocknix kernel patches — the sheng device tree ships in-tree and the
+    # device is proven with a clean (unpatched) mainline kernel.
+    PKG_VERSION="005aa8ccae670a8e731a279e2a802ac75e1e662d"
+    PKG_SITE="https://github.com/ianchb/sm8550-mainline"
+    PKG_URL="https://github.com/ianchb/sm8550-mainline/archive/${PKG_VERSION}.tar.gz"
+    PKG_PATCH_DIRS=""
+    ;;
+  H700|RK3326|SM6115|SM8250|SM8650|AMD64)
     PKG_VERSION="7.1.2"
     PKG_URL="https://www.kernel.org/pub/linux/kernel/v${PKG_VERSION/.*/}.x/${PKG_NAME}-${PKG_VERSION}.tar.xz"
     PKG_PATCH_DIRS+=" 7.0"
@@ -383,18 +392,36 @@ makeinstall_target() {
   else
 
     gzip -c "arch/${TARGET_KERNEL_ARCH}/boot/${KERNEL_TARGET}" > "${INSTALL}/.image/kernel.gz"
-    for dtb in "arch/${TARGET_KERNEL_ARCH}/boot/dts/"**/*.dtb; do
-      if [ -f ${dtb} ]; then
-        cat "$dtb" >> "${INSTALL}/.image/kernel.gz"
-      fi
-    done
-    echo -n "dummy" > "${INSTALL}/.image/ramdisk"
+    if [ "${DEVICE}" = "SM8550" ]; then
+      # Xiaomi Pad 6S Pro (sheng): append only the sheng dtb so the stock
+      # Xiaomi ABL boots a boot.img identical in layout to the proven
+      # boot_sheng_*.img images (Image.gz + sm8550-xiaomi-sheng.dtb).
+      cat "arch/${TARGET_KERNEL_ARCH}/boot/dts/qcom/sm8550-xiaomi-sheng.dtb" >> "${INSTALL}/.image/kernel.gz"
+    else
+      for dtb in "arch/${TARGET_KERNEL_ARCH}/boot/dts/"**/*.dtb; do
+        if [ -f ${dtb} ]; then
+          cat "$dtb" >> "${INSTALL}/.image/kernel.gz"
+        fi
+      done
+    fi
+    # Empty ramdisk: the stock Xiaomi ABL passes any non-empty ramdisk as the
+    # initrd, which would shadow the kernel's built-in Rocknix initramfs. An
+    # empty ramdisk is not handed over, so the built-in initramfs takes over.
+    : > "${INSTALL}/.image/ramdisk"
+    if [ "${DEVICE}" = "SM8550" ]; then
+      # Xiaomi Pad 6S Pro (sheng): the Rocknix rootfs (SYSTEM file) and the
+      # /storage overlay both live on the device's existing userdata partition
+      # (/dev/sda29). No ROCKNIX/STORAGE-labeled partitions are created.
+      BOOT_CMDLINE="boot=/dev/sda29 disk=/dev/sda29"
+    else
+      BOOT_CMDLINE="boot=LABEL=${DISTRO_BOOTLABEL} disk=LABEL=${DISTRO_DISKLABEL}"
+    fi
     python3 "${TOOLCHAIN}/mkbootimg/mkbootimg.py" \
       --kernel "${INSTALL}/.image/kernel.gz" --ramdisk "${INSTALL}/.image/ramdisk" \
-	  --kernel_offset 0x00000000 --ramdisk_offset 0x00000000 --tags_offset 0x00000000 \
-	  --os_version 12.0.0 --os_patch_level "$(date '+%Y-%m')" --header_version 0 \
-	  --cmdline "boot=LABEL=${DISTRO_BOOTLABEL} disk=LABEL=${DISTRO_DISKLABEL} ${EXTRA_CMDLINE}" \
-	  -o "${INSTALL}/.image/${KERNEL_TARGET}" || { exit 1; }
+      --base 0x00000000 --kernel_offset 0x00008000 --ramdisk_offset 0x01000000 --tags_offset 0x01e00000 \
+      --pagesize 4096 --header_version 0 \
+      --cmdline "${BOOT_CMDLINE} ${EXTRA_CMDLINE}" \
+      -o "${INSTALL}/.image/${KERNEL_TARGET}" || { exit 1; }
   fi
 
   kernel_make INSTALL_MOD_PATH=${INSTALL}/$(get_kernel_overlay_dir) modules_install

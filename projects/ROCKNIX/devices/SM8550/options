@@ -28,7 +28,9 @@
     KERNEL_MAKE_EXTRACMD=" $(get_kernel_make_extracmd)"
 
   # Kernel cmdline
-    EXTRA_CMDLINE="quiet rootwait console=tty0 allow_mismatched_32bit_el0 fw_devlink.strict=1 pcie_ports=compat irqaffinity=0-2 cgroup.memory=nokmem,nosocket nosoftlockup usbcore.interrupt_interval_override=045e:028e:2"
+    # sheng: no fw_devlink.strict (causes black screen if any probe fails),
+    # no quiet (keep boot logs visible). pcie_ports=compat needed for WCN7850.
+    EXTRA_CMDLINE="rootwait console=tty0 allow_mismatched_32bit_el0 pcie_ports=compat"
 
   # Bootloader to use (syslinux / u-boot)
     BOOTLOADER="qcom-abl"
@@ -60,10 +62,14 @@
   # Additional Firmware to use ( )
   # Space separated list is supported,
   # e.g. FIRMWARE=""
-    FIRMWARE="extra-firmware"
+    # sheng (Xiaomi Pad 6S Pro) uses ianchb/sheng-firmware; the Rocknix
+    # extra-firmware blobs are Odin2/Retroid-specific and not needed.
+    FIRMWARE="sheng-firmware"
 
   # Additional packages to install
-    ADDITIONAL_PACKAGES="gamepadcalibration rocknix-abl inputplumber"
+    # rocknix-abl intentionally EXCLUDED: the Xiaomi Pad 6S Pro must keep the
+    # stock Xiaomi ABL — flashing the ROCKNIX ABL would not boot on Xiaomi.
+    ADDITIONAL_PACKAGES="gamepadcalibration inputplumber"
 
   # Debug tty path
     DEBUG_TTY="/dev/ttyMSM0"

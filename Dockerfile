@@ -42,6 +42,22 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 \
     --slave /usr/bin/gcov gcov /usr/bin/gcov-12
 RUN update-alternatives --config gcc
 
+# clang-21 + lld: required to build the SM8550 (Xiaomi Pad 6S Pro) kernel the
+# same way the device's proven kernel is built (CC=clang LLVM=1).
+RUN wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh \
+ && chmod +x /tmp/llvm.sh \
+ && /tmp/llvm.sh 21 \
+ && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100 \
+ && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100 \
+ && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-21 100 \
+ && update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-21 100 \
+ && update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-21 100 \
+ && update-alternatives --install /usr/bin/llvm-nm llvm-nm /usr/bin/llvm-nm-21 100 \
+ && update-alternatives --install /usr/bin/llvm-objcopy llvm-objcopy /usr/bin/llvm-objcopy-21 100 \
+ && update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-21 100 \
+ && update-alternatives --install /usr/bin/llvm-objdump llvm-objdump /usr/bin/llvm-objdump-21 100 \
+ && update-alternatives --install /usr/bin/llvm-readelf llvm-readelf /usr/bin/llvm-readelf-21 100
+
 RUN mkdir -p /nix && chown docker /nix && chmod 777 /nix
 RUN mkdir -p /work && chown docker /work
 

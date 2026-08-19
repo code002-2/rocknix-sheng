@@ -16,13 +16,18 @@ fi
 # mount $BOOT_ROOT rw
 mount -o remount,rw $BOOT_ROOT
 
-if [ -d "$SYSTEM_ROOT/usr/share/bootloader/rocknix_abl" ]; then
+### sheng (Xiaomi Pad 6S Pro): the ROCKNIX ABL must NEVER be flashed. The
+### device only boots with the stock Xiaomi ABL (Xiaomi XBL verifies the ABL
+### against the OEM key, so a ROCKNIX-signed ABL would not boot at all). The
+### updateabl step below is intentionally skipped for this device.
+### UPDATE_ABL=yes overrides the skip if an operator explicitly wants it.
+
+if [ "${UPDATE_ABL}" = "yes" ] && [ -d "$SYSTEM_ROOT/usr/share/bootloader/rocknix_abl" ]; then
   mkdir -p $BOOT_ROOT/rocknix_abl
   echo "Updating ROCKNIX ABL on SD..."
   cp $SYSTEM_ROOT/usr/share/bootloader/rocknix_abl/* $BOOT_ROOT/rocknix_abl
+  $SYSTEM_ROOT/usr/bin/updateabl
 fi
-
-$SYSTEM_ROOT/usr/bin/updateabl
 
 ### REMOVE IN THE FUTURE ###
 # cleanup old boot files
